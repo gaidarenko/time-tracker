@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <title>Time Tracker</title>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.2.1/react.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.2.1/react-dom.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.34/browser.min.js"></script>
+
+    <style>
+      form {
+        border: 2px solid #000;
+        border-radius: 6px;
+        margin: 20px 20px;
+        padding: 20px 20px;
+        width: 200px;
+      }
+
+      td {
+        padding: 5px 10px;
+        border: 1px solid #AAA;
+      }
+
+      table {
+        margin: 20px 20px;
+      }
+
+      .center {
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="content"></div>
+
+    <script type="text/babel">
+
+      function formatTime(time) {
+        var hours = Math.floor(time / 3600);
+        var mins  = Math.floor((time - (hours * 3600)) / 60);
+        var secs  = time - (hours * 3600) - (mins * 60);
+
+        if (hours < 10) { hours = "0" + hours; }
+        if (mins  < 10) { mins  = "0" + mins;  }
+        if (secs  < 10) { secs  = "0" + secs;  }
+
+        return hours + ":" + mins + ":" + secs;          
+      }
+
+      var TimeTracker = React.createClass({
+        getInitialState: function() {
+          return {data: [], tracking: false, time: Date.now(), duration: 0, editing: false, itemIndex: 0};
+        }, 
+
+        componentDidMount: function() {
+          var taskList = localStorage.getItem("GG.TimeTracker.TaskList"); 
+
+          if (!taskList)
+            taskList = "[]";   // Default value - empty array
+
+          taskList = JSON.parse(taskList);                    
+          this.setState({data: taskList});
+        },
+
+        handleTaskEdit: function(id) {
+          if (this.state.tracking || this.state.editing) {
+            return;
+          }
+
+          for (var i = 0; i < this.state.data.length; i++) {
+            if (this.state.data[i].id === id) {
+              this.setState({editing: true, itemIndex: i});
+              break;
+            }
+          }
+        },
+
+        handleTaskDone: function(task) {
+          var data = this.state.data;
+
+          if (this.state.editing) {
+            data[this.state.itemIndex].name = task.name;
+            data[this.state.itemIndex].rate = task.rate;
+          }
+
+          if (this.state.tracking) {
+            task.duration = this.state.duration;
+            task.id = this.state.time;   // Use Date.now() as an id of a task
+            data.unshift(task);
+
+            clearInterval(this.refreshInterval);
+          }
+
+          localStorage.setItem("GG.TimeTracker.TaskList", JSON.stringify(data));
+          this.setState({data: data, tracking: false, editing: false});
+        },
+
+        handleTaskCancel: function() {
+          this.setState({tracking: false, editing: false});
+
+          clearInterval(this.refreshInterval);
+        },
+
+        clearList: function() {
+          this.setState({data: []});
+          localStorage.setItem("GG.TimeTracker.TaskList", JSON.stringify([]));
+        },
+
+        createTask: function() {
+          this.setState({tracking: true, time: Date.now(), duration: 0});
+
+          this.refreshInterval = setInterval(function() {
+            var duration = Math.round((Date.now() - this.state.time) / 1000);
+            this.setState({duration: duration});
+          }.bind(this), 1000);
+        },
+
+        render: function() {
+          var header = (<div><button onClick={this.createTask}>Create Task</button>
+                        <button onClick={this.clearList} style={{marginLeft: '10px'}}>Clear List</button></div>);
+
+          if (this.state.tracking) {
+            header = (<TaskForm onTaskDone={this.handleTaskDone} 
+                                onTaskCancel={this.handleTaskCancel} 
+                                duration={this.state.duration}/>);
+          }
+
+          if (this.state.editing) {
+            header = (<TaskForm onTaskDone={this.handleTaskDone} 
+                                onTaskCancel={this.handleTaskCancel} 
+                                name={this.state.data[this.state.itemIndex].name} 
+                                rate={this.state.data[this.state.itemIndex].rate} />);
+          }
+
+          return (
+            <div>
+              <h1>Time Tracker</h1>
+              {header}             
+              <TaskList data={this.state.data} onTaskEdit={this.handleTaskEdit} />
+            </div>
+          );
+        }
+      });
+
+      var TaskForm = React.createClass({
+
+        getInitialState: function() {
+          return {name: "", rate: 3600};
+        },
+
+        componentDidMount: function() {
+          var name = "";
+
+          if (this.props.name)
+            name = this.props.name
+
+          var rate = 3600;
+
+          if (this.props.rate)
+            rate = this.props.rate;
+
+          this.setState({name: name, rate: rate});
+        },
+
+        handleNameChange: function(e) {
+          this.setState({name: e.target.value});
+        },
+
+        handleRateChange: function(e) {
+          this.setState({rate: e.target.value});
+        },
+
+        cancel: function() {
+          this.props.onTaskCancel();
+        },
+
+        done: function() {
+          var name = this.state.name.trim();
+          var rate = this.state.rate;
+
+          this.props.onTaskDone({name: name, rate: rate});
+        },
+
+        render: function() {
+          var timer = (<div style={{marginTop: '30px'}}></div>);
+
+          if (this.props.duration) {
+            timer = (<div>
+                       <h2 id="timer" className="center">{formatTime(this.props.duration)}</h2>
+                     </div>);
+          }
+
+          return (
+            <div>        
+            <form>
+             { /* <h2 className="center" style={{margin: '0'}}>Task</h2> */}
+
+              <div style={{marginTop: '10px'}}>
+                <label htmlFor="name">Задача:</label>
+                <input id="name" 
+                       type="text" 
+                       style={{width: '100%'}} 
+                       value={this.state.name}
+                       onChange={this.handleNameChange}
+                />
+              </div>
+
+              <div style={{marginTop: '20px'}}>
+                <label htmlFor="rate">Ставка:</label>
+                <input id="rate" 
+                       type="number" 
+                       style={{width: '100%'}}
+                       value={this.state.rate}
+                       onChange={this.handleRateChange}
+                />
+              </div>
+
+              {timer}            
+
+              <div className="center">
+                <button onClick={this.cancel} type="button">Cancel</button>
+                <button onClick={this.done} type="button" style={{marginLeft: '10px'}}>Done</button>
+              </div>
+            </form>
+            </div>
+          );
+        }
+      });
+
+      var TaskList = React.createClass({
+        render: function() {
+          var taskNode = this.props.data.map(function(task){
+            return (
+              <TaskItem name={task.name} 
+                        duration={task.duration} 
+                        rate={task.rate} 
+                        key={task.id} 
+                        id={task.id} 
+                        onTaskEdit={this.props.onTaskEdit}/>
+            );
+          }.bind(this));
+
+          var totalTime = 0;
+          var totalMoney = 0;
+
+          for (var i = 0; i < this.props.data.length; i++) {
+            totalTime += this.props.data[i].duration;
+            totalMoney += Math.floor(this.props.data[i].duration * this.props.data[i].rate / 3600);
+          }
+
+          return (
+            <div className="taskList">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Задача</th>
+                    <th>Время</th>
+                    <th>Стоимость</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {taskNode}
+                </tbody>
+              </table>
+
+              <h3>Время всего: {formatTime(totalTime)}</h3>
+              <h3>Денег всего: {totalMoney} руб</h3>
+            </div>
+          );
+        }
+      });
+ 
+      var TaskItem = React.createClass({
+        render: function() {
+          return (
+            <tr>
+              <td>{this.props.name}</td>
+              <td>{formatTime(this.props.duration)}</td>
+              <td>{Math.floor(this.props.duration * this.props.rate / 3600)} руб</td>
+              <td onClick={this.props.onTaskEdit.bind(null, this.props.id)}><i className="fa fa-pencil-square-o" style={{cursor: 'pointer'}}></i></td>
+            </tr>
+          );
+        },
+      });
+
+      ReactDOM.render(
+        <TimeTracker />,
+        document.getElementById('content')
+      );
+    </script>
+  </body>
+</html>
