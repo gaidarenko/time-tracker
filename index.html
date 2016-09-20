@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en-us">
   <head>
     <title>Time Tracker</title>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8">
@@ -199,7 +199,7 @@
              { /* <h2 className="center" style={{margin: '0'}}>Task</h2> */}
 
               <div style={{marginTop: '10px'}}>
-                <label htmlFor="name">Задача:</label>
+                <label htmlFor="name">Task name:</label>
                 <input id="name" 
                        type="text" 
                        style={{width: '100%'}} 
@@ -209,7 +209,7 @@
               </div>
 
               <div style={{marginTop: '20px'}}>
-                <label htmlFor="rate">Ставка:</label>
+                <label htmlFor="rate">Hourly rate:</label>
                 <input id="rate" 
                        type="number" 
                        style={{width: '100%'}}
@@ -256,9 +256,9 @@
               <table>
                 <thead>
                   <tr>
-                    <th>Задача</th>
-                    <th>Время</th>
-                    <th>Стоимость</th>
+                    <th>Task name</th>
+                    <th>Duration</th>
+                    <th>Cost</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -266,8 +266,8 @@
                 </tbody>
               </table>
 
-              <h3>Время всего: {formatTime(totalTime)}</h3>
-              <h3>Денег всего: {totalMoney} руб</h3>
+              <h3>Total duration: {formatTime(totalTime)}</h3>
+              <h3>Total money: {totalMoney}</h3>
             </div>
           );
         }
@@ -279,7 +279,7 @@
             <tr>
               <td>{this.props.name}</td>
               <td>{formatTime(this.props.duration)}</td>
-              <td>{Math.floor(this.props.duration * this.props.rate / 3600)} руб</td>
+              <td>{Math.floor(this.props.duration * this.props.rate / 3600)}</td>
               <td onClick={this.props.onTaskEdit.bind(null, this.props.id)}><i className="fa fa-pencil-square-o" style={{cursor: 'pointer'}}></i></td>
             </tr>
           );
